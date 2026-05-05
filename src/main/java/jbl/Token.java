@@ -1,4 +1,4 @@
-package lark;
+package jbl;
 
 enum TokenType {
     NUMBER, IDENT, TRUE,

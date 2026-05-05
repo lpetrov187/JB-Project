@@ -3,7 +3,7 @@ plugins {
     id 'application'
 }
 
-group = 'lark'
+group = 'jbl'
 version = '1.0.0'
 
 java {
@@ -12,12 +12,12 @@ java {
 }
 
 application {
-    mainClass = 'lark.Main'
+    mainClass = 'jbl.Main'
 }
 
 jar {
     manifest {
-        attributes 'Main-Class': 'lark.Main'
+        attributes 'Main-Class': 'jbl.Main'
     }
 }
 

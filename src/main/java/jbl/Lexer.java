@@ -1,9 +1,9 @@
-package lark;
+package jbl;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static lark.TokenType.*;
+import static jbl.TokenType.*;
 
 public class Lexer {
 

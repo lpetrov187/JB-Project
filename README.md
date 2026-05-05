@@ -1,6 +1,6 @@
-# Lark Interpreter
+# JBL Interpreter
 
-A tree-walking interpreter for **Lark** — a small, hand-crafted language built in Java with Gradle.
+A tree-walking interpreter for **JBL** — a small, hand-crafted language built in Java with Gradle.
 The architecture mirrors a multi-stage compiler pipeline (Visitor pattern, scope management, recursive-descent parser) but targets an interpreter rather than bytecode.
 
 ---
@@ -9,8 +9,8 @@ The architecture mirrors a multi-stage compiler pipeline (Visitor pattern, scope
 
 ### Option A — Docker (no JDK needed)
 ```bash
-docker build -t lark .
-docker run -i lark < input.txt
+docker build -t jbl .
+docker run -i jbl < input.txt
 ```
 
 ### Option B — Gradle wrapper (requires JDK 17+)
@@ -22,7 +22,7 @@ gradlew.bat run < input.txt      # Windows
 ### Option C — Self-contained JAR (requires JDK 17+)
 ```bash
 ./gradlew jar
-java -jar build/libs/lark-1.0.0.jar < input.txt
+java -jar build/libs/jbl-1.0.0.jar < input.txt
 ```
 
 ### Run tests
@@ -34,7 +34,7 @@ java -jar build/libs/lark-1.0.0.jar < input.txt
 
 ## Language
 
-Lark is a small imperative language. Programs are read from stdin; global variable values are printed to stdout on exit.
+JBL is a small imperative language. Programs are read from stdin; global variable values are printed to stdout on exit.
 
 ### Types
 All values are integers. `true` evaluates to `1`. Comparison operators return `0` or `1`.
@@ -170,6 +170,44 @@ The lexer is hand-written (no JFlex). Key rules:
 - `\n` emits a `NEWLINE` token (used as a statement terminator at the top level).
 - `==`, `!=`, `<=`, `>=` are recognized with one-character lookahead inside `readSymbol()`.
 - Keywords (`fun if then else while do return true`) are identified in `readIdent()`.
+
+---
+
+### AST (`ast/`)
+
+The AST uses a classic object-oriented hierarchy with double-dispatch via the Visitor pattern.
+
+**Base classes** (in `jbl.ast`):
+
+| Class | Extends | Purpose |
+|-------|---------|---------|
+| `Node` | — | Root of the hierarchy; declares `accept(Visitor<T>)` |
+| `Stmt` | `Node` | Marker base for all statement nodes |
+| `Expr` | `Node` | Marker base for all expression nodes |
+
+**Visitor interface** (`Visitor<T>`): one `visitXxx(Xxx node)` method per concrete node type. The type parameter `T` is the return type — `Integer` for the interpreter, `Void` for analysis passes.
+
+**`VisitorAdaptor<T>`**: abstract class that implements `Visitor<T>` with all methods returning `defaultResult()` (defaults to `null`). Subclasses override only the nodes they care about, mirroring the MicroJava pattern.
+
+**Concrete nodes** (in `jbl.ast.nodes`):
+
+| Node | Kind | Key fields |
+|------|------|------------|
+| `Program` | — | `List<Stmt> stmts` |
+| `FunDef` | `Stmt` | `String name`, `List<String> params`, `List<Stmt> body` |
+| `IfStmt` | `Stmt` | `Expr condition`, `Stmt thenBranch`, `Stmt elseBranch` (nullable) |
+| `WhileStmt` | `Stmt` | `Expr condition`, `List<Stmt> body` |
+| `ReturnStmt` | `Stmt` | `Expr value` |
+| `AssignStmt` | `Stmt` | `String name`, `Expr value` |
+| `ExprStmt` | `Stmt` | `Expr expr` (a function call used as a statement) |
+| `BinaryExpr` | `Expr` | `Expr left`, `String op`, `Expr right` |
+| `UnaryExpr` | `Expr` | `String op`, `Expr operand` |
+| `NumberLit` | `Expr` | `int value` |
+| `BoolLit` | `Expr` | `boolean value` (`true` → 1 at runtime) |
+| `VarExpr` | `Expr` | `String name` |
+| `CallExpr` | `Expr` | `String name`, `List<Expr> args` |
+
+`IfStmt` holds **single** statements for each branch (not lists). `WhileStmt` holds a **list** — the greedy body collected by `parseStmts`.
 
 ---
 
