@@ -211,4 +211,35 @@ The AST uses a classic object-oriented hierarchy with double-dispatch via the Vi
 
 ---
 
+### Parser (`Parser.java`)
+
+A hand-written recursive-descent parser. All statement-parsing methods take a `Set<TokenType> stopAt` parameter that controls when a comma-separated list stops consuming statements.
+
+**Entry point:** `parseProgram()` returns a `Program` node containing a flat list of all top-level statements.
+
+**Grammar (simplified):**
+```
+program     -> line*
+line        -> stmts NEWLINE
+stmts       -> stmt (',' stmt)*
+stmt        -> fun_def | if_stmt | while_stmt | return_stmt | assign | expr_stmt
+fun_def     -> 'fun' IDENT '(' params ')' '{' stmts '}'
+if_stmt     -> 'if' expr 'then' stmt ('else' stmt)?
+while_stmt  -> 'while' expr 'do' stmts
+return_stmt -> 'return' expr
+assign      -> IDENT '=' expr
+expr_stmt   -> IDENT '(' args ')'
+expr        -> comparison -> arith -> term -> unary -> primary
+```
+
+**Key design decisions:**
+
+- `parseWhileStmt` passes the **same** `stopAt` down to `parseStmts` for the body. This is what makes the while body greedy — commas after a while body are consumed by the while, not by the surrounding list.
+- `parseIfStmt` calls `parseStmt` (not `parseStmts`) for each branch — only a single statement per branch.
+- `parseFunDef` uses `stopAt = {RBRACE}` so the body stops at `}`.
+- `parseArgs` uses commas as argument separators inside `(` ... `)` — no ambiguity with statement-level commas since those are always outside parens.
+- IDENT disambiguation: one token lookahead — `=` means `AssignStmt`, `(` means `ExprStmt(CallExpr)`.
+
+---
+
 *More sections will be added as each component is implemented.*
