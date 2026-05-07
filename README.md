@@ -154,7 +154,7 @@ Source text
 | `ast/Stmt.java` | Abstract statement base |
 | `ast/Expr.java` | Abstract expression base |
 | `ast/Visitor.java` | Visitor interface (one method per node type) |
-| `ast/VisitorAdaptor.java` | Default no-op visitor (mirrors MicroJava pattern) |
+| `ast/VisitorAdaptor.java` | Default no-op visitor |
 | `ast/nodes/` | Concrete AST node classes |
 | `Parser.java` | Recursive-descent parser with `stopAt` propagation |
 | `Value.java` | Sealed runtime value type — `IntVal`, `BoolVal`, `FunVal` |
@@ -194,7 +194,7 @@ The AST uses a classic object-oriented hierarchy with double-dispatch via the Vi
 
 **Visitor interface** (`Visitor<T>`): one `visitXxx(Xxx node)` method per concrete node type. The type parameter `T` is the return type — `Value` for the interpreter, `String` for `AstPrinter`.
 
-**`VisitorAdaptor<T>`**: abstract class that implements `Visitor<T>` with all methods returning `defaultResult()` (defaults to `null`). Subclasses override only the nodes they care about, mirroring the MicroJava pattern.
+**`VisitorAdaptor<T>`**: abstract class that implements `Visitor<T>` with all methods returning `defaultResult()` (defaults to `null`). Subclasses override only the nodes they care about.
 
 **Concrete nodes** (in `jbl.ast.nodes`):
 
@@ -246,8 +246,6 @@ expr        -> comparison -> arith -> term -> unary -> primary
 - `parseFunDef` uses `stopAt = {RBRACE}` so the body stops at `}`.
 - `parseArgs` uses commas as argument separators inside `(` ... `)` — no ambiguity with statement-level commas since those are always outside parens.
 - IDENT disambiguation: one token lookahead — `=` means `AssignStmt`, `(` means `ExprStmt(CallExpr)`.
-
----
 
 ---
 

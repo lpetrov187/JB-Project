@@ -39,7 +39,11 @@ public class Interpreter extends VisitorAdaptor<Value> {
 
     @Override
     public Value visitProgram(Program node) {
-        for (var stmt : node.stmts()) stmt.accept(this);
+        try {
+            for (var stmt : node.stmts()) stmt.accept(this);
+        } catch (ReturnSignal r) {
+            throw new RuntimeException("return used outside of a function");
+        }
         return null;
     }
 
@@ -96,7 +100,7 @@ public class Interpreter extends VisitorAdaptor<Value> {
             case "+"  -> new IntVal(asInt(left) + asInt(right));
             case "-"  -> new IntVal(asInt(left) - asInt(right));
             case "*"  -> new IntVal(asInt(left) * asInt(right));
-            case "/"  -> new IntVal(asInt(left) / asInt(right));
+            case "/"  -> { int d = asInt(right); if (d == 0) throw new RuntimeException("Division by zero"); yield new IntVal(asInt(left) / d); }
             case "==" -> new BoolVal(left.equals(right));
             case "!=" -> new BoolVal(!left.equals(right));
             case "<"  -> new BoolVal(asInt(left) <  asInt(right));
@@ -161,6 +165,7 @@ public class Interpreter extends VisitorAdaptor<Value> {
 
     private int asInt(Value v) {
         if (v instanceof IntVal i) return i.n();
+        if (v instanceof BoolVal)  throw new RuntimeException("Expected number but got a boolean");
         throw new RuntimeException("Expected number, got: " + v);
     }
 }

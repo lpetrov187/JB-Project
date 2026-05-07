@@ -168,4 +168,19 @@ public class InterpreterTest {
     void argCountMismatchThrows() {
         assertThrows(RuntimeException.class, () -> run("fun f(a, b) { return a + b }, r = f(1)"));
     }
+
+    @Test
+    void divisionByZeroThrows() {
+        assertThrows(RuntimeException.class, () -> run("x = 5 / 0"));
+    }
+
+    @Test
+    void typeMismatchThrows() {
+        assertThrows(RuntimeException.class, () -> run("x = true + 1"));
+    }
+
+    @Test
+    void returnAtTopLevelThrows() {
+        assertThrows(RuntimeException.class, () -> run("return 1"));
+    }
 }
