@@ -5,6 +5,7 @@ import jbl.ast.nodes.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class Interpreter extends VisitorAdaptor<Value> {
 
@@ -13,6 +14,23 @@ public class Interpreter extends VisitorAdaptor<Value> {
 
     public void execute(Program program) {
         program.accept(this);
+    }
+
+    public Value getValue(String name) {
+        return globalEnv.get(name);
+    }
+
+    public void printGlobals() {
+        globalEnv.bindings().entrySet().stream()
+            .filter(e -> !(e.getValue() instanceof FunVal))
+            .sorted(Map.Entry.comparingByKey())
+            .forEach(e -> {
+                Value v = e.getValue();
+                String repr = v instanceof IntVal i  ? String.valueOf(i.n())
+                            : v instanceof BoolVal b ? String.valueOf(b.b())
+                            : v.toString();
+                System.out.println(e.getKey() + ": " + repr);
+            });
     }
 
     // -------------------------------------------------------------------------

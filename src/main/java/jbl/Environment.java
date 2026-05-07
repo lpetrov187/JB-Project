@@ -20,4 +20,8 @@ public class Environment {
     public void set(String name, Value value) {
         bindings.put(name, value);
     }
+
+    public Map<String, Value> bindings() {
+        return bindings;
+    }
 }
