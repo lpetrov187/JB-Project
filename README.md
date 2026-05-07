@@ -37,7 +37,11 @@ java -jar build/libs/jbl-1.0.0.jar < input.txt
 JBL is a small imperative language. Programs are read from stdin; global variable values are printed to stdout on exit.
 
 ### Types
-All values are integers. `true` evaluates to `1`. Comparison operators return `0` or `1`.
+JBL has two runtime value types:
+- **Integer** — numeric literals and arithmetic results
+- **Boolean** — `true` literal and comparison results (`==`, `<`, `>`, etc.)
+
+Integers are truthy when non-zero; booleans are truthy when `true`. Both can be used as `if`/`while` conditions.
 
 ### Syntax overview
 
@@ -153,8 +157,11 @@ Source text
 | `ast/VisitorAdaptor.java` | Default no-op visitor (mirrors MicroJava pattern) |
 | `ast/nodes/` | Concrete AST node classes |
 | `Parser.java` | Recursive-descent parser with `stopAt` propagation |
-| `Environment.java` | Scope chain (LinkedHashMap, insertion-ordered) |
-| `Interpreter.java` | Tree-walking evaluator, implements `Visitor<Integer>` |
+| `Value.java` | Sealed runtime value type — `IntVal`, `BoolVal`, `FunVal` |
+| `Environment.java` | Scope chain — current scope + parent reference |
+| `ReturnSignal.java` | Control-flow exception used to unwind the call stack on `return` |
+| `Interpreter.java` | Tree-walking evaluator, implements `Visitor<Value>` |
+| `AstPrinter.java` | Debug visitor — S-expression and visual tree output |
 | `Main.java` | Entry point — wires all stages together |
 
 ### Lexer (`Token.java` + `Lexer.java`)
@@ -185,7 +192,7 @@ The AST uses a classic object-oriented hierarchy with double-dispatch via the Vi
 | `Stmt` | `Node` | Marker base for all statement nodes |
 | `Expr` | `Node` | Marker base for all expression nodes |
 
-**Visitor interface** (`Visitor<T>`): one `visitXxx(Xxx node)` method per concrete node type. The type parameter `T` is the return type — `Integer` for the interpreter, `Void` for analysis passes.
+**Visitor interface** (`Visitor<T>`): one `visitXxx(Xxx node)` method per concrete node type. The type parameter `T` is the return type — `Value` for the interpreter, `String` for `AstPrinter`.
 
 **`VisitorAdaptor<T>`**: abstract class that implements `Visitor<T>` with all methods returning `defaultResult()` (defaults to `null`). Subclasses override only the nodes they care about, mirroring the MicroJava pattern.
 
@@ -242,4 +249,34 @@ expr        -> comparison -> arith -> term -> unary -> primary
 
 ---
 
-*More sections will be added as each component is implemented.*
+---
+
+### Interpreter (`Interpreter.java`)
+
+A tree-walking interpreter that extends `VisitorAdaptor<Value>`. It holds two environment references:
+- `globalEnv` — created once, stores top-level variables and function definitions
+- `currentEnv` — pointer to the active scope; swapped on each function call
+
+**Statement visitors** return `null` and act through side effects (writing to the environment, looping, throwing).
+
+**Expression visitors** return a `Value` that bubbles up to the parent node.
+
+**Return handling:** `visitReturnStmt` throws a `ReturnSignal` (a lightweight `RuntimeException`). It propagates through all nested visitors untouched until `visitCallExpr` catches it. This avoids manual stack tracking.
+
+**Function calls (`visitCallExpr`):**
+1. Look up the name → must resolve to a `FunVal`
+2. Evaluate all argument expressions
+3. Create a fresh child scope with `globalEnv` as parent
+4. Bind parameters to argument values in the child scope
+5. Swap `currentEnv`, execute the body in a try/catch for `ReturnSignal`, restore `currentEnv` in `finally`
+
+---
+
+### Environment (`Environment.java`)
+
+A simple chained scope: a `HashMap<String, Value>` plus a nullable `parent` reference.
+
+- `get(name)` — looks in current scope first, then walks up the parent chain
+- `set(name, value)` — always writes to the current scope
+
+Two scopes exist at runtime: the global scope (`parent = null`) and one call scope per active function invocation (`parent = globalEnv`). Functions are not closures — they can only see globals and their own locals.
