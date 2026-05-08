@@ -10,19 +10,19 @@ The architecture mirrors a multi-stage compiler pipeline (Visitor pattern, scope
 ### Option A — Docker (no JDK needed)
 ```bash
 docker build -t jbl .
-docker run -i jbl < input.txt
+docker run -i jbl < input_data/your_input.jbl
 ```
 
 ### Option B — Gradle wrapper (requires JDK 17+)
 ```bash
-./gradlew run < input.txt        # Unix/Mac
-gradlew.bat run < input.txt      # Windows
+./gradlew run < input_data/your_input.jbl        # Unix/Mac
+gradlew.bat run < input_data/your_input.jbl      # Windows
 ```
 
 ### Option C — Self-contained JAR (requires JDK 17+)
 ```bash
 ./gradlew jar
-java -jar build/libs/jbl-1.0.0.jar < input.txt
+java -jar build/libs/jbl-1.0.0.jar < input_data/your_input.jbl
 ```
 
 ### Run tests

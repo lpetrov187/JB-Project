@@ -35,6 +35,8 @@ public class Lexer {
                 tokens.add(new Token(NEWLINE, "\n", 0, line));
                 line++;
                 advance();
+            } else if (c == '/' && pos + 1 < source.length() && source.charAt(pos + 1) == '/') {
+                while (pos < source.length() && source.charAt(pos) != '\n') pos++;
             } else if (Character.isDigit(c)) {
                 tokens.add(readNumber());
             } else if (Character.isLetter(c) || c == '_') {
