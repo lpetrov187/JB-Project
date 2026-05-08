@@ -6,6 +6,7 @@ WORKDIR /app
 COPY gradlew .
 COPY gradle/ gradle/
 COPY build.gradle .
+COPY settings.gradle .
 
 # Download dependencies (cached layer, only re-runs if build.gradle changes)
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
