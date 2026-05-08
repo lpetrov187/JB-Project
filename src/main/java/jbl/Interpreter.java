@@ -9,8 +9,9 @@ import java.util.Map;
 
 public class Interpreter extends VisitorAdaptor<Value> {
 
-    private final Environment globalEnv = new Environment(null);
-    private Environment currentEnv = globalEnv;
+    protected final Environment globalEnv = new Environment(null);
+    protected Environment currentEnv = globalEnv;
+    protected String currentFunction = null;
 
     public void execute(Program program) {
         program.accept(this);
@@ -141,6 +142,8 @@ public class Interpreter extends VisitorAdaptor<Value> {
         for (int i = 0; i < fun.params().size(); i++)
             callEnv.set(fun.params().get(i), args.get(i));
 
+        String savedFunction = currentFunction;
+        currentFunction = node.name();
         Environment saved = currentEnv;
         currentEnv = callEnv;
         try {
@@ -150,6 +153,7 @@ public class Interpreter extends VisitorAdaptor<Value> {
             return r.value;
         } finally {
             currentEnv = saved;
+            currentFunction = savedFunction;
         }
     }
 

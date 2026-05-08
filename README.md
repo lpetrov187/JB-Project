@@ -1,21 +1,23 @@
 # JBL Interpreter
 
 A tree-walking interpreter for **JBL** — a small, hand-crafted language built in Java with Gradle.
-The architecture mirrors a multi-stage compiler pipeline (Visitor pattern, scope management, recursive-descent parser) but targets an interpreter rather than bytecode.
+The architecture includes a multi-stage compiler pipeline (Visitor pattern, scope management, recursive-descent parser) and targets an interpreter.
 
 ---
 
-## Quickstart
+## Quickstart guide
 
 ### Option A — Docker (no JDK needed)
 ```bash
 docker build -t jbl .
-docker run -i jbl < input_data/your_input.jbl
+docker run --rm -i jbl < input_data/your_input.jbl
 ```
 
 ### Option B — Gradle wrapper (requires JDK 17+)
 ```bash
 ./gradlew run < input_data/your_input.jbl        # Unix/Mac
+```
+```bash
 gradlew.bat run < input_data/your_input.jbl      # Windows
 ```
 
@@ -23,6 +25,17 @@ gradlew.bat run < input_data/your_input.jbl      # Windows
 ```bash
 ./gradlew jar
 java -jar build/libs/jbl-1.0.0.jar < input_data/your_input.jbl
+```
+
+### Option D — Debug mode (interactive, function-exit breakpoints)
+```bash
+./gradlew run --args="--debug factorial input_data/factorial_demo.jbl"   # Unix/Mac
+```
+```bash
+gradlew.bat run --args="--debug factorial input_data/factorial_demo.jbl" # Windows
+```
+```bash
+docker run --rm -it jbl --debug factorial input_data/factorial_demo.jbl  # Docker
 ```
 
 ### Run tests
@@ -115,7 +128,7 @@ x = fact(5)
 ```
 Output: `x: 120`
 
-**Iterative factorial (return from inside while)**
+**Iterative factorial**
 ```
 fun fact_iter(n) { r = 1, while true do if n == 0 then return r else r = r * n, n = n - 1 }
 x = fact_iter(5)
@@ -141,7 +154,7 @@ Source text
  Interpreter    -> executes tree, collects globals
     |
     v
- stdout         name: value (one per line)
+ stdout         name: value
 ```
 
 ### Components
@@ -170,7 +183,12 @@ Source text
 ```java
 record Token(TokenType type, String lexeme, int value, int line) {}
 ```
-`value` carries the parsed integer for `NUMBER` tokens; it is `0` for all others.
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `type` | `TokenType` | The token's grammatical category (e.g. `NUMBER`, `PLUS`, `IDENT`, `IF`) |
+| `lexeme` | `String` | The exact source text that was matched (e.g. `"42"`, `"+"`, `"myVar"`) |
+| `value` | `int` | Pre-parsed integer for `NUMBER` tokens; `0` for all others |
+| `line` | `int` | 1-based source line number, used in error messages |
 
 The lexer is hand-written (no JFlex). Key rules:
 - Spaces, tabs, and `\r` are silently skipped.
@@ -278,3 +296,41 @@ A simple chained scope: a `HashMap<String, Value>` plus a nullable `parent` refe
 - `set(name, value)` — always writes to the current scope
 
 Two scopes exist at runtime: the global scope (`parent = null`) and one call scope per active function invocation (`parent = globalEnv`). Functions are not closures — they can only see globals and their own locals.
+
+---
+
+## Debug mode — illustrating IDEA-385867
+
+JBL ships with an interactive debugger that demonstrates **why IntelliJ's emulated method-exit breakpoints cannot show return values**, and what the multi-stage fix looks like in practice.
+
+### The problem
+
+IntelliJ keeps emulated method-exit breakpoints cheap: instead of enabling `MethodExitWithReturnValue` monitoring across the JVM, it scans compiled bytecode for `xreturn` instructions and plants an ordinary line-level breakpoint there. When that breakpoint fires, the return value is sitting on the **operand stack** — but JDWP's `StackFrame.GetValues` only exposes named local variable slots. The operand stack is hidden from the API entirely. There is also no JDWP command to request the return value after the fact: the only source of that information is the `MethodExitWithReturnValue` event payload, and that event is only generated if exit monitoring was armed *before* the method started returning — which is exactly what emulated breakpoints were designed to avoid.
+
+### The illustration — two stages
+
+The illustration works by inserting two observable pause points around the return-value evaluation inside the interpreter.
+
+- **Stage 1** — before the return expression is evaluated; the value does not exist yet. Corresponds to the emulated breakpoint firing.
+- **Stage 2** — after the return expression is evaluated; the value is captured and printed. Corresponds to the point where the concrete fix would deliver it.
+
+Each recursive call gets its own Stage 1 / Stage 2 pair. The depth counter makes the recursion structure visible: Stage 1s deepen the call stack, Stage 2s unwind it while accumulating the result.
+
+This illustration is a parallel between JBL and the actual IntelliJ IDEA fix that is yet to be implemented. The solution to the real problem lies in retrieving the return value by placing strategically timed breakpoints around the function's exit — the exact mechanism is still open.
+
+### Usage
+
+```
+./gradlew run --args="--debug <funcName> <file>"
+docker run --rm -it jbl --debug <funcName> <file>
+```
+
+**Commands at the `(debug) >` prompt:**
+
+| Command | Effect |
+|---------|--------|
+| `c` or `continue` | Resume execution |
+| `locals` | Print the current function's local variables |
+| `stack` | Print the call stack (innermost frame = #0) |
+
+Locals are also printed automatically at each Stage 1 and Stage 2 pause.

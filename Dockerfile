@@ -19,4 +19,5 @@ RUN ./gradlew jar --no-daemon
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=builder /app/build/libs/jbl-1.0.0.jar jbl.jar
+COPY input_data/ input_data/
 ENTRYPOINT ["java", "-jar", "jbl.jar"]
